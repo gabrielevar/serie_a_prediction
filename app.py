@@ -1,18 +1,16 @@
+import streamlit as st
 import pandas as pd
 import numpy as np
-import streamlit as st
-import plotly.graph_objects as go
-import glob, os
+import glob
+import os
+import matplotlib.pyplot as plt
+
+st.set_page_config(page_title="Previsioni tiri Serie A", layout="wide")
 
 # ----------------------------
-# Impostazioni pagina
+# CARICAMENTO TUTTI I CSV
 # ----------------------------
-st.set_page_config(page_title="Previsioni Tiri Serie A", layout="centered", initial_sidebar_state="expanded")
-
-# ----------------------------
-# CARICAMENTO CSV
-# ----------------------------
-csv_folder = "./"
+csv_folder = "./"  # cartella dei CSV
 csv_files = glob.glob(os.path.join(csv_folder, "*.csv"))
 
 if not csv_files:
@@ -46,7 +44,7 @@ df = pd.DataFrame(rows)
 df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
 
 # ----------------------------
-# CALCOLO STATISTICHE SQUADRE
+# CALCOLO FORZA OFF/DIF
 # ----------------------------
 teams = df['team'].unique()
 team_stats = []
@@ -97,19 +95,18 @@ for team in teams:
 df_teams = pd.DataFrame(team_stats)
 
 # ----------------------------
-# SIDEBAR: Selezione squadre
+# INPUT SQUADRE (MENU ALFABETICO)
 # ----------------------------
-st.sidebar.header("🔹 Seleziona le squadre")
-teams_sorted = sorted(df_teams['team'].tolist())  # Ordina alfabeticamente
-team_home = st.sidebar.selectbox("Squadra in casa", teams_sorted)
-team_away = st.sidebar.selectbox("Squadra in trasferta", teams_sorted)
+team_home = st.selectbox("Seleziona squadra di casa:", sorted(df_teams['team'].values))
+team_away = st.selectbox("Seleziona squadra in trasferta:", sorted(df_teams['team'].values))
 
 # ----------------------------
-# FUNZIONI PREVISIONE
+# FUNZIONI PREVISIONI
 # ----------------------------
 def predict_shots(team_home, team_away, mode='last5', home_away=True):
     t_home = df_teams[df_teams['team']==team_home].iloc[0]
     t_away = df_teams[df_teams['team']==team_away].iloc[0]
+
     if mode=='last5':
         if home_away:
             t1_off = t_home['off_last5_home']
@@ -132,6 +129,7 @@ def predict_shots(team_home, team_away, mode='last5', home_away=True):
             t1_def = t_home['def_total']
             t2_off = t_away['off_total']
             t2_def = t_away['def_total']
+
     shots_home = (t1_off + t2_def)/2
     shots_away = (t2_off + t1_def)/2
     return shots_home, shots_away
@@ -157,71 +155,57 @@ def predict_shots_combined(team1, team2):
     return pred_home, pred_away
 
 # ----------------------------
-# CALCOLI PREVISIONI
+# CALCOLO PREVISIONI
 # ----------------------------
 s_last5_ht, s_last5_at = predict_shots(team_home, team_away, mode='last5', home_away=True)
 s_total_total, s_total_total_2 = predict_shots(team_home, team_away, mode='total', home_away=False)
 s_comb_home, s_comb_away = predict_shots_combined(team_home, team_away)
 
 # ----------------------------
-# HEADER PRINCIPALE
+# DISPLAY PREVISIONI
 # ----------------------------
-st.title("⚽ Previsioni tiri Serie A")
-st.subheader(f"{team_home} vs {team_away}")
+st.subheader("📊 Previsioni tiri")
 
-# ----------------------------
-# BOX PREVISIONI
-# ----------------------------
+# Tabelle affiancate su desktop, leggibili su mobile
 col1, col2 = st.columns(2)
-col1.metric(label="Ultime 5 partite (Casa/Trasferta)", value=f"{s_last5_ht:.2f}")
-col2.metric(label="Ultime 5 partite (Casa/Trasferta)", value=f"{s_last5_at:.2f}")
-
-col1.metric(label="Media totale (Tutte le partite)", value=f"{s_total_total:.2f}")
-col2.metric(label="Media totale (Tutte le partite)", value=f"{s_total_total_2:.2f}")
-
-col1.metric(label="Combinata 60%/40%", value=f"{s_comb_home:.2f}")
-col2.metric(label="Combinata 60%/40%", value=f"{s_comb_away:.2f}")
-
-# ----------------------------
-# GRAFICO INTERATTIVO CON PLOTLY
-# ----------------------------
-import matplotlib.pyplot as plt
-import numpy as np
+with col1:
+    st.markdown(f"**{team_home}**")
+    st.write(f"Ultime 5 (casa/trasferta): {s_last5_ht:.2f}")
+    st.write(f"Stima storica: {s_total_total:.2f}")
+    st.write(f"Combinata 60/40: {s_comb_home:.2f}")
+with col2:
+    st.markdown(f"**{team_away}**")
+    st.write(f"Ultime 5 (casa/trasferta): {s_last5_at:.2f}")
+    st.write(f"Stima storica: {s_total_total_2:.2f}")
+    st.write(f"Combinata 60/40: {s_comb_away:.2f}")
 
 # ----------------------------
-# GRAFICO RAGGRUPPATO PER PREVISIONE
+# GRAFICO RAGGRUPPATO PER TIPO PREVISIONE
 # ----------------------------
-labels = ['Ultime 5 (casa/trasferta)', 'Stima storica', 'Combinata 60/40']
+types = ['Ultime 5 (casa/trasferta)', 'Stima storica', 'Combinata 60/40']
 home_values = [s_last5_ht, s_total_total, s_comb_home]
 away_values = [s_last5_at, s_total_total_2, s_comb_away]
 
-x = np.arange(len(labels))  # posizioni dei gruppi
-width = 0.35  # larghezza delle barre
+x = np.arange(len(types))
+width = 0.35
 
 fig, ax = plt.subplots(figsize=(10,6))
-
-bars_home = ax.bar(x - width/2, home_values, width, label=team_home, color='#1f77b4', alpha=0.8)
-bars_away = ax.bar(x + width/2, away_values, width, label=team_away, color='#ff7f0e', alpha=0.8)
+bars1 = ax.bar(x - width/2, home_values, width, label=team_home, color='#1f77b4', alpha=0.8)
+bars2 = ax.bar(x + width/2, away_values, width, label=team_away, color='#ff7f0e', alpha=0.8)
 
 ax.set_xticks(x)
-ax.set_xticklabels(labels, fontsize=12, fontweight='bold')
+ax.set_xticklabels(types, rotation=25, fontsize=12)
 ax.set_ylabel("Tiri stimati", fontsize=12)
 ax.set_title(f"Confronto previsioni tiri: {team_home} vs {team_away}", fontsize=14, fontweight='bold')
-ax.legend(fontsize=10)
+ax.legend(fontsize=12)
 ax.grid(axis='y', linestyle='--', alpha=0.5)
 
 # Mostra valori sopra le barre
-for bars in [bars_home, bars_away]:
+for bars in [bars1, bars2]:
     for bar in bars:
         height = bar.get_height()
-        ax.annotate(f'{height:.2f}',
-                    xy=(bar.get_x() + bar.get_width()/2, height),
-                    xytext=(0,5),
-                    textcoords="offset points",
+        ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width()/2, height),
+                    xytext=(0,5), textcoords="offset points",
                     ha='center', va='bottom', fontsize=10, fontweight='bold')
 
-plt.tight_layout()
 st.pyplot(fig)
-
-
-
