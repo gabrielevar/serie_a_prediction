@@ -185,10 +185,50 @@ col2.metric(label="Combinata 60%/40%", value=f"{s_comb_away:.2f}")
 # ----------------------------
 # GRAFICO INTERATTIVO CON PLOTLY
 # ----------------------------
-fig = go.Figure(data=[
+"""fig = go.Figure(data=[
     go.Bar(name='Ultime 5 (casa/trasferta)', x=[team_home, team_away], y=[s_last5_ht, s_last5_at], marker_color='#1f77b4'),
     go.Bar(name='Media totale', x=[team_home, team_away], y=[s_total_total, s_total_total_2], marker_color='#ff7f0e'),
     go.Bar(name='Combinata 60/40', x=[team_home, team_away], y=[s_comb_home, s_comb_away], marker_color='#2ca02c')
 ])
 fig.update_layout(barmode='group', title="Confronto previsioni tiri", yaxis_title="Tiri stimati", xaxis_title="")
 st.plotly_chart(fig, use_container_width=True)
+"""
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# ----------------------------
+# GRAFICO RAGGRUPPATO PER PREVISIONE
+# ----------------------------
+labels = ['Ultime 5 (casa/trasferta)', 'Stima storica', 'Combinata 60/40']
+home_values = [s_last5_ht, s_total_total, s_comb_home]
+away_values = [s_last5_at, s_total_total_2, s_comb_away]
+
+x = np.arange(len(labels))  # posizioni dei gruppi
+width = 0.35  # larghezza delle barre
+
+fig, ax = plt.subplots(figsize=(10,6))
+
+bars_home = ax.bar(x - width/2, home_values, width, label=team_home, color='#1f77b4', alpha=0.8)
+bars_away = ax.bar(x + width/2, away_values, width, label=team_away, color='#ff7f0e', alpha=0.8)
+
+ax.set_xticks(x)
+ax.set_xticklabels(labels, fontsize=12, fontweight='bold')
+ax.set_ylabel("Tiri stimati", fontsize=12)
+ax.set_title(f"Confronto previsioni tiri: {team_home} vs {team_away}", fontsize=14, fontweight='bold')
+ax.legend(fontsize=10)
+ax.grid(axis='y', linestyle='--', alpha=0.5)
+
+# Mostra valori sopra le barre
+for bars in [bars_home, bars_away]:
+    for bar in bars:
+        height = bar.get_height()
+        ax.annotate(f'{height:.2f}',
+                    xy=(bar.get_x() + bar.get_width()/2, height),
+                    xytext=(0,5),
+                    textcoords="offset points",
+                    ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+
