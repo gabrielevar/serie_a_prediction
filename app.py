@@ -4,10 +4,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import glob, os
 
-# ----------------------------
-# Impostazioni pagina
-# ----------------------------
-st.set_page_config(page_title="Previsioni Tiri Serie A", layout="centered", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Previsioni Tiri Serie A", layout="centered")
 
 # ----------------------------
 # CARICAMENTO CSV
@@ -46,7 +43,7 @@ df = pd.DataFrame(rows)
 df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
 
 # ----------------------------
-# CALCOLO STATISTICHE SQUADRE
+# CALCOLO STATISTICHE
 # ----------------------------
 teams = df['team'].unique()
 team_stats = []
@@ -94,11 +91,11 @@ for team in teams:
 df_teams = pd.DataFrame(team_stats)
 
 # ----------------------------
-# SELEZIONE SQUADRE (MENU NON SCRIVIBILE)
+# MENU RADIO NON SCRIVIBILE
 # ----------------------------
 teams_sorted = sorted(df_teams['team'].tolist())
-team_home = st.selectbox("Squadra in casa", teams_sorted)
-team_away = st.selectbox("Squadra in trasferta", teams_sorted)
+team_home = st.radio("Squadra in casa", teams_sorted, index=0, horizontal=True)
+team_away = st.radio("Squadra in trasferta", teams_sorted, index=1, horizontal=True)
 
 # ----------------------------
 # FUNZIONI PREVISIONE
@@ -174,10 +171,10 @@ df_valori = pd.DataFrame({
     team_away: [f"{v:.2f}" for v in away_values]
 })
 st.subheader("📊 Valori stimati")
-st.table(df_valori)
+st.dataframe(df_valori, hide_index=True)
 
 # ----------------------------
-# GRAFICO MATPLOTLIB
+# GRAFICO
 # ----------------------------
 x = np.arange(len(labels))
 width = 0.35
@@ -193,7 +190,6 @@ ax.set_title(f"Confronto previsioni tiri", fontsize=14, fontweight='bold')
 ax.legend(fontsize=10)
 ax.grid(axis='y', linestyle='--', alpha=0.5)
 
-# Mostra valori sopra le barre
 for bars in [bars_home, bars_away]:
     for bar in bars:
         height = bar.get_height()
