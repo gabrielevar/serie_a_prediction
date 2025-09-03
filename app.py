@@ -91,11 +91,11 @@ for team in teams:
 df_teams = pd.DataFrame(team_stats)
 
 # ----------------------------
-# MENU RADIO NON SCRIVIBILE
+# MENU A TENDINA ORDINATO
 # ----------------------------
 teams_sorted = sorted(df_teams['team'].tolist())
-team_home = st.radio("Squadra in casa", teams_sorted, index=0, horizontal=True)
-team_away = st.radio("Squadra in trasferta", teams_sorted, index=1, horizontal=True)
+team_home = st.selectbox("Squadra in casa", teams_sorted, index=0, key="home")
+team_away = st.selectbox("Squadra in trasferta", teams_sorted, index=1, key="away")
 
 # ----------------------------
 # FUNZIONI PREVISIONE
