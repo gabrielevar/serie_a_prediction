@@ -7,7 +7,7 @@ import glob, os
 # ----------------------------
 # Impostazioni pagina
 # ----------------------------
-st.set_page_config(page_title="Previsioni Tiri Serie A", layout="centered")
+st.set_page_config(page_title="Previsioni Tiri Serie A", layout="centered", initial_sidebar_state="expanded")
 
 # ----------------------------
 # CARICAMENTO CSV
@@ -29,22 +29,18 @@ rows = []
 for idx, row in df_raw.iterrows():
     if pd.isna(row.get("HomeTeam")) or pd.isna(row.get("AwayTeam")):
         continue
-    rows.append({
-        'team': row['HomeTeam'].title(),
-        'opponent': row['AwayTeam'].title(),
-        'shots_for': row['HS'],
-        'shots_against': row['AS'],
-        'date': row.get('Date'),
-        'home': 1
-    })
-    rows.append({
-        'team': row['AwayTeam'].title(),
-        'opponent': row['HomeTeam'].title(),
-        'shots_for': row['AS'],
-        'shots_against': row['HS'],
-        'date': row.get('Date'),
-        'home': 0
-    })
+    rows.append({'team': row['HomeTeam'].title(),
+                 'opponent': row['AwayTeam'].title(),
+                 'shots_for': row['HS'],
+                 'shots_against': row['AS'],
+                 'date': row.get('Date'),
+                 'home': 1})
+    rows.append({'team': row['AwayTeam'].title(),
+                 'opponent': row['HomeTeam'].title(),
+                 'shots_for': row['AS'],
+                 'shots_against': row['HS'],
+                 'date': row.get('Date'),
+                 'home': 0})
 
 df = pd.DataFrame(rows)
 df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
@@ -60,23 +56,24 @@ for team in teams:
     df_last5 = df_team.head(5)
     pesi = np.linspace(1, 0.2, len(df_last5)) if not df_last5.empty else [1]
 
+    off_last5_total = np.average(df_last5['shots_for'], weights=pesi) if not df_last5.empty else 0
+    def_last5_total = np.average(df_last5['shots_against'], weights=pesi) if not df_last5.empty else 0
+
     df_last5_home = df_last5[df_last5['home']==1]
     df_last5_away = df_last5[df_last5['home']==0]
-
     off_last5_home = np.average(df_last5_home['shots_for'], weights=np.linspace(1,0.2,len(df_last5_home))) if not df_last5_home.empty else 0
     def_last5_home = np.average(df_last5_home['shots_against'], weights=np.linspace(1,0.2,len(df_last5_home))) if not df_last5_home.empty else 0
     off_last5_away = np.average(df_last5_away['shots_for'], weights=np.linspace(1,0.2,len(df_last5_away))) if not df_last5_away.empty else 0
     def_last5_away = np.average(df_last5_away['shots_against'], weights=np.linspace(1,0.2,len(df_last5_away))) if not df_last5_away.empty else 0
 
-    off_total_home = df_team[df_team['home']==1]['shots_for'].mean() if not df_team.empty else 0
-    def_total_home = df_team[df_team['home']==1]['shots_against'].mean() if not df_team.empty else 0
-    off_total_away = df_team[df_team['home']==0]['shots_for'].mean() if not df_team.empty else 0
-    def_total_away = df_team[df_team['home']==0]['shots_against'].mean() if not df_team.empty else 0
-
-    off_last5_total = np.average(df_last5['shots_for'], weights=pesi) if not df_last5.empty else 0
-    def_last5_total = np.average(df_last5['shots_against'], weights=pesi) if not df_last5.empty else 0
     off_total = df_team['shots_for'].mean() if not df_team.empty else 0
     def_total = df_team['shots_against'].mean() if not df_team.empty else 0
+    df_home = df_team[df_team['home']==1]
+    df_away = df_team[df_team['home']==0]
+    off_total_home = df_home['shots_for'].mean() if not df_home.empty else 0
+    def_total_home = df_home['shots_against'].mean() if not df_home.empty else 0
+    off_total_away = df_away['shots_for'].mean() if not df_away.empty else 0
+    def_total_away = df_away['shots_against'].mean() if not df_away.empty else 0
 
     team_stats.append({
         'team': team,
@@ -97,9 +94,8 @@ for team in teams:
 df_teams = pd.DataFrame(team_stats)
 
 # ----------------------------
-# SELEZIONE SQUADRE SOPRA IL GRAFICO
+# SELEZIONE SQUADRE (MENU NON SCRIVIBILE)
 # ----------------------------
-st.title("⚽ Previsioni tiri Serie A")
 teams_sorted = sorted(df_teams['team'].tolist())
 team_home = st.selectbox("Squadra in casa", teams_sorted)
 team_away = st.selectbox("Squadra in trasferta", teams_sorted)
@@ -159,19 +155,30 @@ def predict_shots_combined(team1, team2):
     return pred_home, pred_away
 
 # ----------------------------
-# CALCOLO PREVISIONI
+# CALCOLI PREVISIONI
 # ----------------------------
 s_last5_ht, s_last5_at = predict_shots(team_home, team_away, mode='last5', home_away=True)
 s_total_total, s_total_total_2 = predict_shots(team_home, team_away, mode='total', home_away=False)
 s_comb_home, s_comb_away = predict_shots_combined(team_home, team_away)
 
 # ----------------------------
-# GRAFICO
+# TABELLA VALORI STIMATI
 # ----------------------------
 labels = ['Ultime 5 (Casa/Trasferta)', 'Stima storica', 'Combinata 60/40']
 home_values = [s_last5_ht, s_total_total, s_comb_home]
 away_values = [s_last5_at, s_total_total_2, s_comb_away]
 
+df_valori = pd.DataFrame({
+    "Previsione": labels,
+    team_home: [f"{v:.2f}" for v in home_values],
+    team_away: [f"{v:.2f}" for v in away_values]
+})
+st.subheader("📊 Valori stimati")
+st.table(df_valori)
+
+# ----------------------------
+# GRAFICO MATPLOTLIB
+# ----------------------------
 x = np.arange(len(labels))
 width = 0.35
 
@@ -197,14 +204,3 @@ for bars in [bars_home, bars_away]:
                     ha='center', va='bottom', fontsize=10, fontweight='bold')
 
 st.pyplot(fig)
-
-# ----------------------------
-# VALORI NUMERICI SOTTO IL GRAFICO
-# ----------------------------
-st.subheader("📊 Valori stimati")
-df_valori = pd.DataFrame({
-    "Previsione": labels,
-    team_home: home_values,
-    team_away: away_values
-})
-st.table(df_valori)
