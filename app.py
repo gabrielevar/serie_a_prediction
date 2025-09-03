@@ -185,15 +185,6 @@ col2.metric(label="Combinata 60%/40%", value=f"{s_comb_away:.2f}")
 # ----------------------------
 # GRAFICO INTERATTIVO CON PLOTLY
 # ----------------------------
-"""fig = go.Figure(data=[
-    go.Bar(name='Ultime 5 (casa/trasferta)', x=[team_home, team_away], y=[s_last5_ht, s_last5_at], marker_color='#1f77b4'),
-    go.Bar(name='Media totale', x=[team_home, team_away], y=[s_total_total, s_total_total_2], marker_color='#ff7f0e'),
-    go.Bar(name='Combinata 60/40', x=[team_home, team_away], y=[s_comb_home, s_comb_away], marker_color='#2ca02c')
-])
-fig.update_layout(barmode='group', title="Confronto previsioni tiri", yaxis_title="Tiri stimati", xaxis_title="")
-st.plotly_chart(fig, use_container_width=True)
-"""
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -231,4 +222,5 @@ for bars in [bars_home, bars_away]:
 
 plt.tight_layout()
 plt.show()
+
 
