@@ -1,17 +1,13 @@
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
-import glob
-import os
 import streamlit as st
+import plotly.graph_objects as go
+import glob, os
 
 # ----------------------------
-# STREAMLIT INTERFACE
+# Impostazioni pagina
 # ----------------------------
-st.set_page_config(page_title="Previsione Tiri", layout="wide")
-
-st.title("⚽ Previsione Tiri Squadre")
-st.markdown("Seleziona le squadre e visualizza le stime dei tiri previste.")
+st.set_page_config(page_title="Previsioni Tiri Serie A", layout="centered", initial_sidebar_state="expanded")
 
 # ----------------------------
 # CARICAMENTO CSV
@@ -50,7 +46,7 @@ df = pd.DataFrame(rows)
 df['date'] = pd.to_datetime(df['date'], dayfirst=True, errors='coerce')
 
 # ----------------------------
-# CALCOLO FORZA OFF/DIF
+# CALCOLO STATISTICHE SQUADRE
 # ----------------------------
 teams = df['team'].unique()
 team_stats = []
@@ -101,10 +97,12 @@ for team in teams:
 df_teams = pd.DataFrame(team_stats)
 
 # ----------------------------
-# SELEZIONE SQUADRE STREAMLIT
+# SIDEBAR: Selezione squadre
 # ----------------------------
-team_home = st.selectbox("Seleziona squadra di casa", df_teams['team'].values)
-team_away = st.selectbox("Seleziona squadra in trasferta", df_teams['team'].values)
+st.sidebar.header("🔹 Seleziona le squadre")
+teams_sorted = sorted(df_teams['team'].tolist())  # Ordina alfabeticamente
+team_home = st.sidebar.selectbox("Squadra in casa", teams_sorted)
+team_away = st.sidebar.selectbox("Squadra in trasferta", teams_sorted)
 
 # ----------------------------
 # FUNZIONI PREVISIONE
@@ -112,7 +110,6 @@ team_away = st.selectbox("Seleziona squadra in trasferta", df_teams['team'].valu
 def predict_shots(team_home, team_away, mode='last5', home_away=True):
     t_home = df_teams[df_teams['team']==team_home].iloc[0]
     t_away = df_teams[df_teams['team']==team_away].iloc[0]
-
     if mode=='last5':
         if home_away:
             t1_off = t_home['off_last5_home']
@@ -135,7 +132,6 @@ def predict_shots(team_home, team_away, mode='last5', home_away=True):
             t1_def = t_home['def_total']
             t2_off = t_away['off_total']
             t2_def = t_away['def_total']
-
     shots_home = (t1_off + t2_def)/2
     shots_away = (t2_off + t1_def)/2
     return shots_home, shots_away
@@ -161,46 +157,38 @@ def predict_shots_combined(team1, team2):
     return pred_home, pred_away
 
 # ----------------------------
-# CALCOLO PREVISIONI
+# CALCOLI PREVISIONI
 # ----------------------------
 s_last5_ht, s_last5_at = predict_shots(team_home, team_away, mode='last5', home_away=True)
 s_total_total, s_total_total_2 = predict_shots(team_home, team_away, mode='total', home_away=False)
 s_comb_home, s_comb_away = predict_shots_combined(team_home, team_away)
 
 # ----------------------------
-# STAMPA RISULTATI
+# HEADER PRINCIPALE
 # ----------------------------
-st.subheader("📊 Risultati previsione tiri")
-st.write(f"**Ultime 5 partite (casa/trasferta):** {team_home}: {s_last5_ht:.2f}, {team_away}: {s_last5_at:.2f}, Totale: {s_last5_ht+s_last5_at:.2f}")
-st.write(f"**Media storica (totale):** {team_home}: {s_total_total:.2f}, {team_away}: {s_total_total_2:.2f}, Totale: {s_total_total+s_total_total_2:.2f}")
-st.write(f"**Combinata 60/40:** {team_home}: {s_comb_home:.2f}, {team_away}: {s_comb_away:.2f}, Totale: {s_comb_home+s_comb_away:.2f}")
+st.title("⚽ Previsioni tiri Serie A")
+st.subheader(f"{team_home} vs {team_away}")
 
 # ----------------------------
-# GRAFICO STREAMLIT
+# BOX PREVISIONI
 # ----------------------------
-import matplotlib
-matplotlib.use("Agg")
+col1, col2 = st.columns(2)
+col1.metric(label="Ultime 5 partite (Casa/Trasferta)", value=f"{s_last5_ht:.2f}")
+col2.metric(label="Ultime 5 partite (Casa/Trasferta)", value=f"{s_last5_at:.2f}")
 
-fig, ax = plt.subplots(figsize=(10,6))
-width = 0.25
-x = np.arange(2)
+col1.metric(label="Media totale (Tutte le partite)", value=f"{s_total_total:.2f}")
+col2.metric(label="Media totale (Tutte le partite)", value=f"{s_total_total_2:.2f}")
 
-bars1 = ax.bar(x - width, [s_last5_ht, s_last5_at], width, label='Ultime 5 (casa/trasferta)', color='#1f77b4', alpha=0.8)
-bars2 = ax.bar(x, [s_total_total, s_total_total_2], width, label='Media storica', color='#ff7f0e', alpha=0.8)
-bars3 = ax.bar(x + width, [s_comb_home, s_comb_away], width, label='Combinata 60/40', color='#2ca02c', alpha=0.8)
+col1.metric(label="Combinata 60%/40%", value=f"{s_comb_home:.2f}")
+col2.metric(label="Combinata 60%/40%", value=f"{s_comb_away:.2f}")
 
-ax.set_xticks(x)
-ax.set_xticklabels([team_home, team_away], fontsize=12, fontweight='bold')
-ax.set_ylabel("Tiri stimati", fontsize=12)
-ax.set_title(f"Confronto previsioni tiri: {team_home} vs {team_away}", fontsize=14, fontweight='bold')
-ax.legend(fontsize=10)
-ax.grid(axis='y', linestyle='--', alpha=0.5)
-
-for bars in [bars1, bars2, bars3]:
-    for bar in bars:
-        height = bar.get_height()
-        ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width()/2, height),
-                    xytext=(0,5), textcoords="offset points",
-                    ha='center', va='bottom', fontsize=10, fontweight='bold')
-
-st.pyplot(fig)
+# ----------------------------
+# GRAFICO INTERATTIVO CON PLOTLY
+# ----------------------------
+fig = go.Figure(data=[
+    go.Bar(name='Ultime 5 (casa/trasferta)', x=[team_home, team_away], y=[s_last5_ht, s_last5_at], marker_color='#1f77b4'),
+    go.Bar(name='Media totale', x=[team_home, team_away], y=[s_total_total, s_total_total_2], marker_color='#ff7f0e'),
+    go.Bar(name='Combinata 60/40', x=[team_home, team_away], y=[s_comb_home, s_comb_away], marker_color='#2ca02c')
+])
+fig.update_layout(barmode='group', title="Confronto previsioni tiri", yaxis_title="Tiri stimati", xaxis_title="")
+st.plotly_chart(fig, use_container_width=True)
