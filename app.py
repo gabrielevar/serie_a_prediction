@@ -221,6 +221,7 @@ for bars in [bars_home, bars_away]:
                     ha='center', va='bottom', fontsize=10, fontweight='bold')
 
 plt.tight_layout()
-plt.show()
+st.pyplot(fig)
+
 
 
